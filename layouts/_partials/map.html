@@ -1,18 +1,17 @@
 {{ $service := site.Params.Map.service }}
 
-<div id="{{ .id }}" class="box map"></div>
+<div id="{{ .id }}" class="map"></div>
 
 
   {{ if eq $service "osm" }}
 
     <script>
-		var points = [
-			{{- range .points -}}
-			[{{.latitude}},{{.longitude}}],
-			{{- end -}}
-		];
+
+		var points = {{ .points | jsonify | safeJS }};
 		var initialZoom = {{ with .zoom  }}{{ . }}{{ else }} 0 {{ end }};
-		var bounds = new L.LatLngBounds(points);
+		var bounds = new L.LatLngBounds(points.map(p=>{
+			return [p.latitude,p.longitude];
+		}));
 		var mymap = L.map("{{- .id -}}").fitBounds(bounds);
 		if ( initialZoom == 0 ){
 			// If it's not set on the map shortcode, 15 is a reasonable MAXIUMUM
@@ -32,11 +31,17 @@
             }
         ).addTo(mymap);
 		points.forEach(loc=>{
-			L.marker(loc).addTo(mymap);
+			let marker = L.marker([loc.latitude,loc.longitude]).addTo(mymap);
+			if ( loc.title ){
+				let content;
+				if ( loc.link ){
+					content = `<div class="special"><h4>${loc.title}</h4><a class="" href="${loc.link}">Find out more</a></div>`
+				} else {
+					content = `<h4>${loc.title}</h4>`
+				}
+				marker.bindPopup(content,{closeOnClick: false, autoClose: false}).openPopup();
+			}
 		});
-		if ( mymap.getZoom() > 15){
-			mymap.setZoom(15);
-		}
 
     </script>
   {{ else if eq $service "google" }}
